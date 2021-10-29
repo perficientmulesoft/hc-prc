@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="common-implFlow" doc:id="4b2c1ae0-7d9e-4176-989f-375600774574" >
+		<choice doc:name="HTTP Request Choice" doc:id="4d01e116-c28b-47a8-a65a-5ffb7eb5a119" >
+			<when expression="#[payload.flag == '1']">
+				<flow-ref doc:name="Bed Availability" doc:id="241adabd-99f3-4b34-884d-e19b05c7b1af" name="hospital-bed-availaibility-implFlow"/>
+			</when>
+			<when expression="#[payload.flag=='2']">
+				<flow-ref doc:name="Get Patient Information" doc:id="9d9aab58-fee6-4589-acfb-8d7f927a4915" name="get-patient-information-implFlow"/>
+			</when>
+			<when expression="#[payload.flag=='3']">
+				<flow-ref doc:name="Update Hospital Information" doc:id="9918ca78-1007-4cff-84c2-18f47797b691" name="update-hospital-infoFlow"/>
+			</when>
+			<when expression="#[payload.flag=='4']">
+				<flow-ref doc:name="Get Operation Cost" doc:id="af2818c1-85dd-4da8-8aa5-31686bfe6241" name="get-operation-cost-implFlow"/>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Default Response" doc:id="a19850fc-3de6-42b7-a6e8-6efe6ef739d3" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Please enter valid flag"
+}]]></ee:set-payload>
+						<ee:set-attributes ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	statusCode: 404
+}]]></ee:set-attributes>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

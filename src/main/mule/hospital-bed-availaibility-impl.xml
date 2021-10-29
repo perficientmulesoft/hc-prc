@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:request-config name="HTTP_Request_configuration-hospital" doc:name="HTTP Request configuration" doc:id="5d8794a4-d249-47db-9880-ebb68977b71c" >
+		<http:request-connection host="hc-hospital-sys.us-e2.cloudhub.io"/>
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration-patient-sys" doc:name="HTTP Request configuration" doc:id="23859d78-0c61-49f1-9e6a-c1d807214308" >
+		<http:request-connection host="patientrecordsapi.us-e2.cloudhub.io" />
+	</http:request-config>
+	<flow name="hospital-bed-availaibility-implFlow" doc:id="d2a45d35-d3f3-4233-a3f3-662caf6fc535" >
+		<ee:transform doc:name="Set Input Payload" doc:id="a92117d0-fb92-4796-a262-e4554d213846" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="hospitalName" ><![CDATA[%dw 2.0
+output application/java
+---
+if((payload.userQuery contains 'get') or (payload.userQuery contains 'Get')) 'getwell'
+else if((payload.userQuery contains 'king') or (payload.userQuery contains 'King')) 'KingsWay'
+else if((payload.userQuery contains 'gm') or (payload.userQuery contains 'GM') ) 'GMC'
+else if((payload.userQuery contains 'oran') or (payload.userQuery contains 'Oran'))'OrangeCity'
+else if((payload.userQuery contains 'Kim') or (payload.userQuery contains 'KIM') or (payload.userQuery contains 'kim')) 'KIMS'
+else if((payload.userQuery contains 'kesh') or (payload.userQuery contains 'Kesh')) 'Keshav'
+else if((payload.userQuery contains 'sure') or (payload.userQuery contains 'Sure')) 'SureTech'
+else null]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Before Call To Hc-sys" doc:id="677521e8-2d7e-417f-b254-3ba94f68508d" />
+		<ee:transform doc:name="set query Param" doc:id="86d4786a-cff5-494c-9ace-0bc323617bf3" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="queryparam" ><![CDATA[output application/json skipNullOn = 'everywhere' 
+---
+{
+	"HospitalName" : if(vars.hospitalName != null) vars.hospitalName else null,
+	"city" : if(vars.hospitalname != null) "Nagpur" else null
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="Get Bed Availaibility" doc:id="72202545-be22-4bc5-aa86-a96b325d6993" config-ref="HTTP_Request_configuration-hospital" path="/api/getAvailableBedInformation">
+			<http:query-params ><![CDATA[#[vars.queryparam]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="After Call To Hc-sys" doc:id="e6e6ac8c-31ef-45e2-a848-0b3086ebaab8" message="Response received from hc-hospital-sys"/>
+		<choice doc:name="Validate Status Code" doc:id="b71c6144-ea60-42f9-932f-beaa29169139" >
+			<when expression="#[attributes.statusCode == 200 and sizeOf(payload) &gt; 0 and (payload[0].'AvailableICUBed' != null or payload[0].'Number Of ICU Beds' != null or payload[0].'Number Of Gen Beds' != null)]">
+				<ee:transform doc:name="Success Response" doc:id="167e0376-a0df-466c-bab0-7a4ea3f7afe6">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Error Response" doc:id="43962bd0-4270-433d-8765-ce7522ee1966" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Sorry no information available"
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+if(attributes.statusCode != 200) attributes.statusCode else 404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Final Logger" doc:id="1cba5bf6-5afe-4e6b-b383-596321d12d72" message="Flow Ended for Hospital bed availaibility"/>
+	</flow>
+	<flow name="get-patient-information-implFlow" doc:id="538ebbda-95e5-43ee-9ce5-6c1e1eca0b31" >
+		<logger level="INFO" doc:name="Before calling hc-patient-sys" doc:id="9ec68c3d-9e75-47d4-9e6c-ff5626f1021f" message="data received to call hc-hospital-sys"/>
+		<http:request method="GET" doc:name="Get Patient Information" doc:id="472d5ebf-90d0-4b82-a0fb-7c368b51a1ad" config-ref="HTTP_Request_configuration-patient-sys" path="/api/patient/{patientId}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"patientId" : payload.patientId
+}]]]></http:uri-params>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..599" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Validate Status Code" doc:id="3f26b12d-f059-40b2-a7a8-1ff10d3cfc3c" >
+			<when expression="#[attributes.statusCode== 200 and payload != null]">
+				<ee:transform doc:name="Response Payload" doc:id="a311e12a-c0c2-4841-96b2-acf30188c797">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Error Payload" doc:id="7c5ddcfe-aea8-447c-991d-c6b16677b94b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.statusCode]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="After calling hc-patient-sys" doc:id="a41a6304-673a-4f3f-8a2e-595403ac0571" />
+	</flow>
+	<flow name="update-hospital-infoFlow" doc:id="f5a300ac-92cf-4eba-a777-1937a0f19a15" >
+		<http:request method="POST" doc:name="Create/Update Hospital Information" doc:id="918ab16f-4500-44c8-9804-cc21b569865b" config-ref="HTTP_Request_configuration-hospital" path="/api/updateInformation"/>
+		<ee:transform doc:name="Response Payload" doc:id="ee92affc-6e69-48f5-ba34-c086166b77a1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="get-operation-cost-implFlow" doc:id="0c3ff1a5-63f6-4a45-8d35-3074c4019dde" >
+		<http:request method="GET" doc:name="Get Operation Cost" doc:id="e4d3f59e-ca28-4300-b311-6fab904bac03" config-ref="HTTP_Request_configuration-patient-sys" path="/api/patient/OperationCost">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"Surgery" : payload.surgery
+}]]]></http:query-params>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..599" />
+			</http:response-validator>
+		</http:request>
+		<choice doc:name="Validate Status code" doc:id="b2e5efae-990e-45d8-8754-b6451275c4a0" >
+			<when expression="#[attributes.statusCode == 200 and payload.'Cost-In-Rupees' != null]">
+				<ee:transform doc:name="Response Payload" doc:id="0976df89-a8f4-431f-883e-249a13f1b9e3">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Error Payload" doc:id="59b7c2f4-958b-4e52-99aa-d0b0c5898094" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+if(attributes.statusCode != 200) attributes.statusCode else 404]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

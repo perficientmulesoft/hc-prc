@@ -1,0 +1,22 @@
+#%RAML 1.0 Library
+usage: HealthyMe Data Types
+types:
+  RequestData:
+    type: object
+    properties:
+      userQuery:
+        type: string
+        required: false
+      flag:
+        type: string
+        required: false
+  ErrorResponse:
+    type: object
+    properties:
+      error:
+        type: object
+        properties:
+          code:
+            type: string
+          message:
+            type: string

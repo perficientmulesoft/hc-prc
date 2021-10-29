@@ -1,0 +1,29 @@
+#%RAML 1.0
+version: v1.0
+title: hc-hospital-sys
+description:  API used to retrieve or insert information related to Hospital and Patient
+uses:
+  HealtyMe: /DataTypes/HealthyMeData.raml
+mediaType:
+  - application/json
+/healthyMe:
+  post:
+    description: Retrieve or Insert Hospital and patient information
+    body:
+      application/json:
+        type: HealtyMe.RequestData
+    responses:
+      "200" :
+        description: Hospital and Patient Information.
+        body:
+          type: HealtyMe.RequestData
+      "400":
+        description: Wrong input data or malformed input
+        body:
+          application/json:
+            type: HealtyMe.ErrorResponse
+      "500":
+        description: Something went wrong on the server side
+        body:
+          application/json:
+            type: HealtyMe.ErrorResponse
